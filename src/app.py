@@ -15,7 +15,6 @@ import streamlit as st
 # Añadir src/ al path para imports relativos
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-# from data.load_data           import load_df_clean
 from models.predict           import predecir_hit, GENEROS_DISPONIBLES
 from visualization.charts     import plot_top_tracks, plot_genres, plot_heatmap
 
