@@ -10,3 +10,4 @@ Resumen del proyecto
 4. Modelo: Random Forest entrenado con 7 variables: oyentes, duración, género, engagement, y estadísticas del artista. El umbral de "hit" es el top 10% por reproducciones (más de 5 millones de plays).
 5. La app tiene dos partes: un predictor donde introduces género, duración y oyentes estimados se obtiene una probabilidad de hit (Hit potencial: probabilidad >= 70%, Potencial medio: probabilidad 45%-75%, Bajo potencial: probabilidad > 45%) y un dashboard con las canciones más populares, géneros dominantes y un mapa de calor por país.
 6. Conclusión clave: El género y los oyentes iniciales son los factores que más predicen el éxito. Las canciones cortas (formato TikTok) no necesariamente tienen más reproducciones — el engagement importa más que la duración.
+
