@@ -127,14 +127,35 @@ def predecir_hit(model, encoder, features, duracion_min, genero, oyentes, engage
 # 4. GRÁFICOS
 # ═══════════════════════════════════════════════════════════════════════════════
 
-sns.set_theme(style="whitegrid", font_scale=1.0)
+sns.set_theme(style="dark", font_scale=1.0)
+
+# Paleta de colores del HTML
+_BG      = "#0a0a0f"
+_SURFACE = "#12121a"
+_BORDER  = "#2a2a3a"
+_ORANGE  = "#ff6b35"
+_PURPLE  = "#7c3aed"
+_CYAN    = "#06b6d4"
+_GREEN   = "#10b981"
+_YELLOW  = "#f59e0b"
+_TEXT    = "#e8e8f0"
+_MUTED   = "#7a7a9a"
+
+def _style_ax(ax, fig):
+    """Aplica fondo oscuro y estilo del HTML a cualquier figura."""
+    fig.patch.set_facecolor(_BG)
+    ax.set_facecolor(_SURFACE)
+    ax.tick_params(colors=_MUTED, labelsize=9)
+    ax.xaxis.label.set_color(_MUTED)
+    ax.yaxis.label.set_color(_MUTED)
+    ax.title.set_color(_TEXT)
+    for spine in ax.spines.values():
+        spine.set_edgecolor(_BORDER)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
 
 
 def plot_top_tracks(df, n=15):
-    """
-    Barplot horizontal con las top N canciones por reproducciones.
-    Devuelve una Figure de matplotlib (sin hacer plt.show).
-    """
     top = (
         df[["name", "artist", "playcount"]]
         .dropna(subset=["playcount"])
@@ -145,34 +166,48 @@ def plot_top_tracks(df, n=15):
     top["label"] = top["name"] + "  —  " + top["artist"]
     top = top.sort_values("playcount", ascending=True)
 
-    fig, ax = plt.subplots(figsize=(10, 6))
-    bars = ax.barh(top["label"], top["playcount"] / 1e6, color="steelblue", edgecolor="white")
+    # Top 3 en naranja, siguiente tercio en morado, resto en cyan
+    n_bars = len(top)
+    colors = []
+    for i in range(n_bars):
+        if i >= n_bars - 3:
+            colors.append(_ORANGE)
+        elif i >= n_bars - 8:
+            colors.append(_PURPLE)
+        else:
+            colors.append(_CYAN)
 
-    ax.set_xlabel("Reproducciones (millones)", fontsize=11)
-    ax.set_title(f"🎵 Top {n} canciones por reproducciones", fontsize=13, fontweight="bold", pad=12)
+    fig, ax = plt.subplots(figsize=(10, 6))
+    bars = ax.barh(top["label"], top["playcount"] / 1e6,
+                   color=colors, edgecolor="none", height=0.65)
+
+    ax.set_xlabel("Reproducciones (millones)", fontsize=10)
+    ax.set_title(f"Top {n} canciones por reproducciones", fontsize=13,
+                 fontweight="bold", pad=14, color=_TEXT)
     ax.xaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f"{x:.0f}M"))
 
     for bar, val in zip(bars, top["playcount"] / 1e6):
-        ax.text(bar.get_width() + 0.3, bar.get_y() + bar.get_height() / 2,
-                f"{val:.1f}M", va="center", fontsize=8.5, color="dimgray")
+        ax.text(bar.get_width() + 0.5, bar.get_y() + bar.get_height() / 2,
+                f"{val:.1f}M", va="center", fontsize=8, color=_MUTED)
 
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
+    # Línea de referencia en 50M
+    ax.axvline(50, color=_BORDER, linewidth=1, linestyle="--", alpha=0.6)
+
+    _style_ax(ax, fig)
     plt.tight_layout()
     return fig
 
 
 def plot_genres(df, n=12):
-    """
-    Barplot de géneros por reproducciones totales.
-    Devuelve una Figure de matplotlib.
-    """
     df_tag = df.dropna(subset=["tag", "playcount"]).copy()
 
     if df_tag.empty:
         fig, ax = plt.subplots(figsize=(8, 4))
+        fig.patch.set_facecolor(_BG)
+        ax.set_facecolor(_SURFACE)
         ax.text(0.5, 0.5, "Sin datos de género disponibles",
-                ha="center", va="center", transform=ax.transAxes, fontsize=12, color="gray")
+                ha="center", va="center", transform=ax.transAxes,
+                fontsize=12, color=_MUTED)
         return fig
 
     stats = (
@@ -184,30 +219,33 @@ def plot_genres(df, n=12):
         .sort_values("playcount", ascending=True)
     )
 
-    colors = sns.color_palette("Blues_r", n_colors=len(stats))
-    fig, ax = plt.subplots(figsize=(10, 6))
-    bars = ax.barh(stats["tag"], stats["playcount"] / 1e9, color=colors, edgecolor="white")
+    # Gradiente cyan → morado según posición
+    import matplotlib.colors as mcolors
+    cmap = mcolors.LinearSegmentedColormap.from_list(
+        "html", [_PURPLE, _CYAN], N=len(stats)
+    )
+    colors = [mcolors.to_hex(cmap(i / max(len(stats) - 1, 1)))
+              for i in range(len(stats))]
 
-    ax.set_xlabel("Reproducciones totales (miles de millones)", fontsize=11)
-    ax.set_title(f"🎧 Top {n} géneros por popularidad", fontsize=13, fontweight="bold", pad=12)
+    fig, ax = plt.subplots(figsize=(10, 6))
+    bars = ax.barh(stats["tag"], stats["playcount"] / 1e9,
+                   color=colors, edgecolor="none", height=0.65)
+
+    ax.set_xlabel("Reproducciones totales (miles de millones)", fontsize=10)
+    ax.set_title(f"Top {n} géneros por popularidad", fontsize=13,
+                 fontweight="bold", pad=14, color=_TEXT)
     ax.xaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f"{x:.1f}B"))
 
     for bar, val in zip(bars, stats["playcount"] / 1e9):
-        ax.text(bar.get_width() + 0.01, bar.get_y() + bar.get_height() / 2,
-                f"{val:.2f}B", va="center", fontsize=8.5, color="dimgray")
+        ax.text(bar.get_width() + 0.02, bar.get_y() + bar.get_height() / 2,
+                f"{val:.2f}B", va="center", fontsize=8, color=_MUTED)
 
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
+    _style_ax(ax, fig)
     plt.tight_layout()
     return fig
 
 
 def plot_heatmap(df):
-    """
-    Heatmap de reproducciones medias por Género × País.
-    Solo incluye países reales (excluye GLOBAL y UNKNOWN).
-    Devuelve una Figure de matplotlib.
-    """
     df_geo = df[
         df["country"].notna() &
         ~df["country"].isin(["UNKNOWN", "GLOBAL"]) &
@@ -216,30 +254,55 @@ def plot_heatmap(df):
 
     if df_geo.empty:
         fig, ax = plt.subplots(figsize=(8, 4))
+        fig.patch.set_facecolor(_BG)
+        ax.set_facecolor(_SURFACE)
         ax.text(0.5, 0.5, "Sin datos geográficos disponibles",
-                ha="center", va="center", transform=ax.transAxes, fontsize=12, color="gray")
+                ha="center", va="center", transform=ax.transAxes,
+                fontsize=12, color=_MUTED)
         return fig
 
     top_tags = (df_geo.groupby("tag")["playcount"].sum()
-                .sort_values(ascending=False).head(10).index.tolist())
+                .sort_values(ascending=False).head(8).index.tolist())
     top_countries = (df_geo.groupby("country")["playcount"].sum()
-                     .sort_values(ascending=False).head(10).index.tolist())
+                     .sort_values(ascending=False).head(8).index.tolist())
 
     df_geo = df_geo[df_geo["tag"].isin(top_tags) & df_geo["country"].isin(top_countries)]
+    pivot  = (df_geo.groupby(["tag", "country"])["playcount"]
+              .mean().unstack(fill_value=0) / 1e6)
 
-    pivot = (df_geo.groupby(["tag", "country"])["playcount"]
-             .mean().unstack(fill_value=0) / 1e6)
+    import matplotlib.colors as mcolors
+    cmap = mcolors.LinearSegmentedColormap.from_list(
+        "html_heat", [_SURFACE, _PURPLE, _ORANGE], N=256
+    )
 
-    fig, ax = plt.subplots(figsize=(11, 6))
-    sns.heatmap(pivot, ax=ax, cmap="YlGn", annot=True, fmt=".1f",
-                linewidths=0.4, linecolor="white",
-                cbar_kws={"label": "Reproducciones medias (M)", "shrink": 0.8})
-    ax.set_title("📊 Reproducciones medias por Género × País (millones)",
-                 fontsize=13, fontweight="bold", pad=12)
-    ax.set_xlabel("País", fontsize=11)
-    ax.set_ylabel("Género", fontsize=11)
-    plt.xticks(rotation=35, ha="right", fontsize=9)
-    plt.yticks(rotation=0, fontsize=9)
+    fig, ax = plt.subplots(figsize=(9, 5))          # más pequeño que antes
+    fig.patch.set_facecolor(_BG)
+    ax.set_facecolor(_BG)
+
+    sns.heatmap(
+        pivot, ax=ax,
+        cmap=cmap,
+        annot=True, fmt=".0f",
+        linewidths=0.5, linecolor=_BG,
+        annot_kws={"size": 8, "color": _TEXT},
+        cbar_kws={"label": "Reprod. medias (M)", "shrink": 0.7},
+    )
+
+    ax.set_title("Reproducciones medias por Género × País (M)",
+                 fontsize=12, fontweight="bold", pad=12, color=_TEXT)
+    ax.set_xlabel("País", fontsize=9, color=_MUTED)
+    ax.set_ylabel("Género", fontsize=9, color=_MUTED)
+    ax.tick_params(colors=_MUTED, labelsize=8)
+    plt.xticks(rotation=30, ha="right")
+    plt.yticks(rotation=0)
+
+    # Colorbar styling
+    cbar = ax.collections[0].colorbar
+    cbar.ax.yaxis.label.set_color(_MUTED)
+    cbar.ax.tick_params(colors=_MUTED, labelsize=7)
+    cbar.outline.set_edgecolor(_BORDER)
+
+    fig.patch.set_facecolor(_BG)
     plt.tight_layout()
     return fig
 
